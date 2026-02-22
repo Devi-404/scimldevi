@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physics-Informed Neural Networks (PINNs)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap');
+
+        :root {
+            --bg-color: #010409;
+            --accent-color-data: #ff7f00; /* Orange for Data */
+            --accent-color-physics: #00e5ff; /* Cyan for Physics */
+            --node-color: #2b303b;
+            --text-color: #e6edf3;
+            --code-font: 'Roboto Mono', monospace;
+            --header-font: 'Orbitron', sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--code-font);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        header {
+            text-align: center;
+            padding: 80px 20px;
+            background: linear-gradient(180deg, var(--bg-color) 0%, rgba(1, 4, 9, 0.7) 100%), 
+                        url('https://i.imgur.com/your-generated-image-url-here.png') no-repeat center center / cover; /* Replace with your image URL */
+            min-height: 500px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6); /* Dark overlay */
+        }
+
+        header h1 {
+            font-family: var(--header-font);
+            font-size: clamp(2.5rem, 8vw, 5rem);
+            color: #fff;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px var(--accent-color-physics), 0 0 40px var(--accent-color-data);
+            position: relative;
+            z-index: 1;
+        }
+
+        header p {
+            font-size: clamp(1rem, 3vw, 1.5rem);
+            color: #a0a0a0;
+            max-width: 800px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .pinn-visualizer-section {
+            padding: 60px 20px;
+            text-align: center;
+            background-color: #0d1117;
+            border-top: 1px solid #21262d;
+            border-bottom: 1px solid #21262d;
+        }
+
+        .pinn-visualizer-section h2 {
+            font-family: var(--header-font);
+            font-size: 3rem;
+            color: var(--accent-color-physics);
+            margin-bottom: 40px;
+            text-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+        }
+
+        .pinn-controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .input-box {
+            background-color: var(--node-color);
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-family: var(--code-font);
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .input-box:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+        }
+
+        #dataInputBox:hover { border-color: var(--accent-color-data); }
+        #physicsInputBox:hover { border-color: var(--accent-color-physics); }
+
+        .input-box span {
+            display: block;
+            position: relative;
+            z-index: 1;
+        }
+        .input-box::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: transparent;
+            transition: background 0.3s ease;
+            z-index: 0;
+        }
+        #dataInputBox:hover::before { background: rgba(255, 127, 0, 0.1); }
+        #physicsInputBox:hover::before { background: rgba(0, 229, 255, 0.1); }
+
+
+        #pinnCanvas {
+            background-color: #010409;
+            border-radius: 15px;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.5), 0 10px 30px rgba(0,0,0,0.7);
+            border: 1px solid #21262d;
+            max-width: 100%;
+            margin-top: 20px;
+        }
+
+        .theory-section {
+            max-width: 1000px;
+            margin: 80px auto;
+            padding: 0 20px;
+        }
+
+        .theory-section h2 {
+            font-family: var(--header-font);
+            font-size: 2.8rem;
+            color: var(--accent-color-data);
+            margin-bottom: 30px;
+            border-bottom: 2px solid #2b303b;
+            padding-bottom: 10px;
+            text-align: center;
+        }
+
+        .theory-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .theory-card {
+            background-color: #0d1117;
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #21262d;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .theory-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--accent-color-physics);
+            box-shadow: 0 8px 25px rgba(0, 229, 255, 0.15);
+        }
+
+        .theory-card h3 {
+            font-family: var(--header-font);
+            color: var(--accent-color-physics);
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            text-shadow: 0 0 5px rgba(0, 229, 255, 0.2);
+        }
+        
+        .theory-card pre {
+            background-color: rgba(255,255,255,0.05);
+            border-left: 3px solid var(--accent-color-data);
+            padding: 15px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            margin-top: 15px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 50px 20px;
+            color: #6a737d;
+            font-size: 0.9rem;
+            border-top: 1px solid #21262d;
+            margin-top: 80px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Physics-Informed Neural Networks</h1>
+        <p>A new frontier in scientific machine learning, fusing neural networks with the fundamental laws of physics to model complex systems.</p>
+    </header>
+
+    <section class="pinn-visualizer-section">
+        <h2>The PINN Engine in Action</h2>
+        <div class="pinn-controls">
+            <div class="input-box" id="dataInputBox">
+                <span>Observed Data (Ux, Uy, T)</span>
+            </div>
+            <div class="input-box" id="physicsInputBox">
+                <span>Physics Equations (Navier-Stokes)</span>
+            </div>
+        </div>
+        <canvas id="pinnCanvas" width="900" height="500"></canvas>
+    </section>
+
+    <section class="theory-section">
+        <h2>Theory: Merging Data with Determinism</h2>
+        <p>Physics-Informed Neural Networks (PINNs) are a paradigm shift, moving beyond purely data-driven models to integrate the immutable laws of physics directly into the learning process. This allows for robust predictions even with sparse data, and the discovery of underlying physical parameters.</p>
+
+        <div class="theory-grid">
+            <div class="theory-card">
+                <h3>The Hybrid Loss Function</h3>
+                <p>Unlike traditional neural networks that optimize solely for data accuracy, PINNs minimize a combined loss function. This function has two main components:</p>
+                <ul>
+                    <li><strong>Data-driven Loss ($L_D$):</strong> Measures how well the network predicts known data points.</li>
+                    <li><strong>Physics-driven Loss ($L_P$):</strong> Penalizes the network if its predictions violate a given set of Partial Differential Equations (PDEs).</li>
+                </ul>
+                <pre>Loss = $w_D \cdot L_D + w_P \cdot L_P$</pre>
+                <p>Here, $w_D$ and $w_P$ are weights that balance the importance of data versus physics.</p>
+            </div>
+
+            <div class="theory-card">
+                <h3>Automatic Differentiation</h3>
+                <p>PINNs leverage the power of automatic differentiation (AD), a core feature of modern deep learning frameworks. AD allows the network to compute derivatives of its output with respect to its input variables (e.g., space $x$, time $t$).</p>
+                <p>This means if the neural network predicts a solution $\hat{u}(x,t)$, AD can find $\frac{\partial\hat{u}}{\partial x}$, $\frac{\partial^2\hat{u}}{\partial x^2}$, $\frac{\partial\hat{u}}{\partial t}$, etc., which are crucial components for evaluating physical equations.</p>
+                <pre># Example PDE: u_t + u_x = 0 (1D Advection)
+def physics_loss(model, x, t):
+    u = model(x, t)
+    u_t = tf.gradients(u, t)[0]
+    u_x = tf.gradients(u, x)[0]
+    return tf.square(u_t + u_x)</pre>
+            </div>
+
+            <div class="theory-card">
+                <h3>Solving Inverse Problems</h3>
+                <p>One of the most powerful applications of PINNs is solving <strong>inverse problems</strong>. Instead of just predicting an outcome, PINNs can infer unknown parameters of the physical system itself (e.g., fluid viscosity, heat conductivity) directly from observed data and the governing equations.</p>
+                <p>This capability makes them invaluable in fields where direct measurement is difficult or impossible, allowing scientists to characterize materials or environments with unprecedented accuracy.</p>
+            </div>
+
+            <div class="theory-card">
+                <h3>Key Advantages & Applications</h3>
+                <ul>
+                    <li><strong>Reduced Data Dependency:</strong> Can generalize well even with limited or noisy data.</li>
+                    <li><strong>Physical Consistency:</strong> Predictions inherently obey physical laws.</li>
+                    <li><strong>Accelerated Simulations:</strong> Can solve PDEs orders of magnitude faster than traditional numerical methods.</li>
+                    <li><strong>Multiphysics Problems:</strong> Ideal for complex systems involving coupled physical phenomena.</li>
+                </ul>
+                <p>Applications span fluid dynamics, materials science, quantum mechanics, weather forecasting, and biomedical engineering.</p>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        &copy; 2023 Physics-Informed Neural Networks. Merging AI with the Cosmos.
+    </footer>
+
+    <script>
+        const canvas = document.getElementById('pinnCanvas');
+        const ctx = canvas.getContext('2d');
+        const dataInputBox = document.getElementById('dataInputBox');
+        const physicsInputBox = document.getElementById('physicsInputBox');
+
+        let particles = [];
+        let nodes = []; // Simplified NN nodes for visualization
+        let mouse = { x: -1000, y: -1000, radius: 200 }; // Mouse influence for prediction surface
+        let predictionSurface = [];
+
+        // Constants
+        const NUM_DATA_POINTS = 30;
+        const NUM_PHYSICS_POINTS = 50;
+        const NUM_NN_LAYERS = 3; // Input, 2 Hidden, Output
+        const NODES_PER_LAYER = 8;
+        const PARTICLE_SPEED = 0.01;
+
+        // Colors
+        const DATA_COLOR = 'rgba(255, 127, 0, 0.7)'; // Orange
+        const PHYSICS_COLOR = 'rgba(0, 229, 255, 0.7)'; // Cyan
+        const NODE_COLOR = 'rgba(255, 255, 255, 0.1)';
+        const SYNAPSE_COLOR = 'rgba(255, 255, 255, 0.05)';
+        const LOSS_HEAT_COLOR_DATA = 'rgba(255, 127, 0, 0.1)';
+        const LOSS_HEAT_COLOR_PHYSICS = 'rgba(0, 229, 255, 0.1)';
+        const PREDICTION_SURFACE_COLOR = 'rgba(100, 200, 255, 0.2)'; // Blueish transparent
+
+        // Simulation state
+        let hoveredDataBox = false;
+        let hoveredPhysicsBox = false;
+
+        // Particle class for data and physics points
+        class Particle {
+            constructor(type, x, y, targetX, targetY) {
+                this.type = type; // 'data' or 'physics'
+                this.x = x;
+                this.y = y;
+                this.targetX = targetX;
+                this.targetY = targetY;
+                this.currentX = x;
+                this.currentY = y;
+                this.color = type === 'data' ? DATA_COLOR : PHYSICS_COLOR;
+                this.size = Math.random() * 2 + 3;
+                this.progress = 0;
+                this.active = true;
+                this.traveling = false;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.currentX, this.currentY, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+
+            update() {
+                if (this.traveling) {
+                    this.progress += PARTICLE_SPEED;
+                    if (this.progress >= 1) {
+                        this.active = false; // Reached destination, deactivate
+                    } else {
+                        this.currentX = this.x + (this.targetX - this.x) * this.progress;
+                        this.currentY = this.y + (this.targetY - this.y) * this.progress;
+                    }
+                }
+            }
+        }
+
+        // Initialize NN structure
+        function initNeuralNetwork() {
+            nodes = [];
+            const layerWidth = canvas.width / (NUM_NN_LAYERS + 1);
+
+            for (let i = 0; i < NUM_NN_LAYERS + 1; i++) { // +1 for output layer
+                const x = layerWidth * (i + 1);
+                const layerNodes = [];
+                const actualNodesInLayer = (i === 0) ? 2 : (i === NUM_NN_LAYERS) ? 1 : NODES_PER_LAYER; // Input:2, Output:1, Hidden:NODES_PER_LAYER
+                const nodeSpacing = canvas.height / (actualNodesInLayer + 1);
+
+                for (let j = 0; j < actualNodesInLayer; j++) {
+                    layerNodes.push({
+                        x: x,
+                        y: nodeSpacing * (j + 1)
+                    });
+                }
+                nodes.push(layerNodes);
+            }
+        }
+
+        // Generate prediction surface points
+        function initPredictionSurface() {
+            predictionSurface = [];
+            const gridSize = 20; // 20x20 grid
+            for (let i = 0; i <= gridSize; i++) {
+                for (let j = 0; j <= gridSize; j++) {
+                    predictionSurface.push({
+                        x: (i / gridSize) * canvas.width,
+                        y: (j / gridSize) * canvas.height,
+                        value: Math.random() * 10 - 5 // Simulate some initial random value
+                    });
+                }
+            }
+        }
+
+        function createParticles() {
+            particles = [];
+            
+            // Create data points (random positions, targeting input layer)
+            for (let i = 0; i < NUM_DATA_POINTS; i++) {
+                const startX = Math.random() * 100 + 50; // Spawn near left edge
+                const startY = Math.random() * (canvas.height - 100) + 50;
+                const targetNode = nodes[0][Math.floor(Math.random() * nodes[0].length)];
+                particles.push(new Particle('data', startX, startY, targetNode.x, targetNode.y));
+            }
+
+            // Create physics points (random positions, targeting input layer)
+            for (let i = 0; i < NUM_PHYSICS_POINTS; i++) {
+                const startX = Math.random() * 100 + canvas.width - 150; // Spawn near right edge
+                const startY = Math.random() * (canvas.height - 100) + 50;
+                const targetNode = nodes[0][Math.floor(Math.random() * nodes[0].length)];
+                particles.push(new Particle('physics', startX, startY, targetNode.x, targetNode.y));
+            }
+        }
+
+        function animate() {
+            // Clear canvas with a subtle fade
+            ctx.fillStyle = 'rgba(1, 4, 9, 0.4)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // --- Draw Neural Network Structure ---
+            for (let i = 0; i < nodes.length - 1; i++) {
+                nodes[i].forEach(startNode => {
+                    nodes[i+1].forEach(endNode => {
+                        ctx.beginPath();
+                        ctx.moveTo(startNode.x, startNode.y);
+                        ctx.lineTo(endNode.x, endNode.y);
+                        ctx.strokeStyle = SYNAPSE_COLOR;
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                    });
+                });
+            }
+
+            nodes.flat().forEach(node => {
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, 7, 0, Math.PI * 2);
+                ctx.fillStyle = NODE_COLOR;
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            });
+
+            // --- Draw Prediction Surface ---
+            ctx.strokeStyle = PREDICTION_SURFACE_COLOR;
+            ctx.lineWidth = 1.5;
+            predictionSurface.forEach(p => {
+                // Simulate mouse influence on prediction surface
+                let dx = mouse.x - p.x;
+                let dy = mouse.y - p.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                let influence = Math.max(0, 1 - distance / mouse.radius);
+                
+                let modulatedValue = p.value + Math.sin(p.x * 0.05 + p.y * 0.02 + Date.now() * 0.001) * 3 + influence * 20;
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y + modulatedValue, 1.5, 0, Math.PI * 2);
+                ctx.stroke();
+            });
+
+            // --- Draw Loss Heatmap (Simplified) ---
+            const heatmapGradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 50, canvas.width / 2, canvas.height / 2, Math.min(canvas.width, canvas.height) / 2);
+            heatmapGradient.addColorStop(0, 'rgba(255, 255, 0, 0.1)'); // Core area of high loss
+            heatmapGradient.addColorStop(0.5, 'rgba(255, 127, 0, 0.05)');
+            heatmapGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = heatmapGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // --- Draw Particles ---
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            particles = particles.filter(p => p.active); // Remove inactive particles
+
+            // Spawn new particles for continuous flow
+            if (particles.filter(p => p.type === 'data').length < NUM_DATA_POINTS && Math.random() < 0.05) {
+                const startX = hoveredDataBox ? Math.random() * 50 + 50 : Math.random() * 100 + 50; // Spawn near left edge
+                const startY = hoveredDataBox ? Math.random() * (canvas.height - 100) + 50 : Math.random() * (canvas.height - 100) + 50;
+                const targetNode = nodes[0][Math.floor(Math.random() * nodes[0].length)];
+                particles.push(new Particle('data', startX, startY, targetNode.x, targetNode.y));
+            }
+            if (particles.filter(p => p.type === 'physics').length < NUM_PHYSICS_POINTS && Math.random() < 0.05) {
+                const startX = hoveredPhysicsBox ? Math.random() * 50 + canvas.width - 100 : Math.random() * 100 + canvas.width - 150; // Spawn near right edge
+                const startY = hoveredPhysicsBox ? Math.random() * (canvas.height - 100) + 50 : Math.random() * (canvas.height - 100) + 50;
+                const targetNode = nodes[0][Math.floor(Math.random() * nodes[0].length)];
+                particles.push(new Particle('physics', startX, startY, targetNode.x, targetNode.y));
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        // Event Listeners for Hover effects
+        dataInputBox.addEventListener('mouseenter', () => hoveredDataBox = true);
+        dataInputBox.addEventListener('mouseleave', () => hoveredDataBox = false);
+        physicsInputBox.addEventListener('mouseenter', () => hoveredPhysicsBox = true);
+        physicsInputBox.addEventListener('mouseleave', () => hoveredPhysicsBox = false);
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = e.clientX - rect.left;
+            mouse.y = e.clientY - rect.top;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            mouse.x = -1000; // Move mouse out of canvas to reset influence
+            mouse.y = -1000;
+        });
+
+        window.addEventListener('resize', () => {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+            initNeuralNetwork();
+            initPredictionSurface();
+            createParticles();
+        });
+
+        initNeuralNetwork();
+        initPredictionSurface();
+        createParticles();
+        animate();
+    </script>
+</body>
+</html>
